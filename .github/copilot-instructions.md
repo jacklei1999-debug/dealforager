@@ -10,7 +10,7 @@ This represents the UI and background processing layer of the DealForager system
   - `Controllers/`: Handle web requests. `HomeController` manages the main product feed.
   - `Views/`: Razor views for the UI.
   - `Services/`: Contains hosted services like `FetchBackgroundService`.
-- **Shared Library**: Relies on `DealForager.Shared` (sibling project) for EF Core `Context` and domain entities.
+- **Data Layer**: `Data/` contains the EF Core `Context`, domain entities, fetch configuration, and deal fetcher in the `WebUIMVC.Data` namespace.
 - **Database**: SQLite (`DealForagerDb`). The schema is automatically ensured/created at startup in `Startup.cs`.
 
 ### 2. Background Processing
@@ -35,7 +35,7 @@ This represents the UI and background processing layer of the DealForager system
 
 ### Build & Publish
 - Multiple publish profiles and target directories exist (`publish-mac`, `publish-windows`).
-- Note dependency on sibling `DealForager.Shared` when building.
+- The project builds independently with its NuGet package references.
 
 ## Development Guidelines
 - **Logging**: Use `ILogger<T>` injected into constructors.

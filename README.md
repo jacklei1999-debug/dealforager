@@ -5,11 +5,13 @@ An ASP.NET Core 8 MVC application for browsing deals, managing products and wish
 ## Requirements
 
 - .NET 8 SDK
-- The `DealForager.Shared` project, placed next to this repository's directory. `WebUIMVC.csproj` references `../DealForager.Shared/DealForager.Shared.csproj`. That shared project is not included in this repository.
+- NuGet package restore (Entity Framework Core SQLite and Newtonsoft.Json).
+
+The database models and deal-fetching implementation are included in `Data/`; no sibling project is required.
 
 ## Run locally
 
-Once the shared project is available:
+From the repository directory:
 
 ```sh
 dotnet restore WebUIMVC.csproj
