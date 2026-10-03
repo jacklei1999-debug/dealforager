@@ -1,0 +1,31 @@
+@model IEnumerable<DealForager.Shared.Product>
+@{
+    ViewData["Title"] = "Confirm Delete Products";
+    var start = ViewBag.Start as DateTime?;
+    var end = ViewBag.End as DateTime?;
+    var count = ViewBag.Count as int? ?? 0;
+}
+<h3>Confirm Deletion</h3>
+<p>You are about to delete <b>@count</b> products from <b>@start</b> to <b>@end</b>.</p>
+@if (count > 0)
+{
+    <form method="post" action="/Home/DeleteProductsByDateRangeConfirmed">
+        <input type="hidden" name="start" value="@start?.ToString("yyyy-MM-ddTHH:mm:ss")" />
+        <input type="hidden" name="end" value="@end?.ToString("yyyy-MM-ddTHH:mm:ss")" />
+        <button type="submit" class="btn btn-danger">Yes, Delete These Products</button>
+        <a href="@Url.Action("ProductAdmin")" class="btn btn-secondary">Cancel</a>
+    </form>
+    <hr />
+    <h5>Products to be deleted:</h5>
+    <ul>
+    @foreach (var p in Model)
+    {
+        <li>@p.asin - @p.title (@p.intertTime)</li>
+    }
+    </ul>
+}
+else
+{
+    <div class="alert alert-info">No products found in the specified date range.</div>
+    <a href="@Url.Action("ProductAdmin")" class="btn btn-secondary">Back</a>
+}

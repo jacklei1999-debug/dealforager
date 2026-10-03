@@ -1,0 +1,6 @@
+[
+  { "minSavings": "90", "interval": 30, "category": "0000000000000000000000" },
+  { "minSavings": "80", "interval": 60, "category": "0000000000000000000000" },
+  { "minSavings": "65", "interval": 60, "category": "1000000100100000010000" },
+  { "minSavings": "35", "interval": 180, "category": "0000000100000000000000" }
+]

@@ -1,0 +1,136 @@
+﻿@model WebUIMVC.MyClasses.Products
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+<h3> New Deals: @Model.PL.Count  </h3>
+<h5> @DateTime.Now </h5>
+
+<div class="text-center">
+    @{
+
+        <button id="readButton" onclick="updateRead()" class="btn btn-warning"> Mark All </button>
+
+        <button id="readButton" onclick="Refresh()" class="btn btn-primary"> Refresh </button>
+    }
+</div>
+
+<p> </p>
+
+<div class="container" onload="JavaScript:AutoRefresh(100000);">
+    <div class="row">
+
+        @foreach (var i in Model.PL)
+        {
+
+            <div class="col-md-4">
+                @{
+                    var imagesrc = "";
+                    if(i.imageURL.Length > 1)
+                    {
+                        imagesrc = "https://images-na.ssl-images-amazon.com/images/I/" + i.imageURL;
+                    }
+                    else
+                    {
+                        imagesrc = "https://images.amazon.com/images/P/" +i.asin + ".01._SCTZZZZZZZ_.jpg";
+                    }
+
+                    /*var imagesrc = "https://m.media-amazon.com" + i.imageURL*/ 
+                    //imagesrc = "https://images.amazon.com/images/P/" +i.asin + ".01._SCTZZZZZZZ_.jpg";
+                    decimal  usedp = i.usedprice / 100;
+                    decimal  savingsp = i.savingspercent /100;
+                    decimal  pricedifference = i.pricedifference /100;
+                    decimal usePrice =  Math.Round(usedp,2);
+                    decimal savingspercent = Math.Round(savingsp, 2);
+                    
+                    var URLa = "https://www.amazon.com/dp/" + @i.asin + "/ref=olp_aod_redir_impl1?_encoding=UTF8&aod=1";
+                    bool isWishlisted = i.readit == 4;
+            }
+             
+            <div class="media border p-3 @(isWishlisted ? "wishlisted" : "")">
+                <a href="@URLa" target="_blank">
+                    <img src="@imagesrc" alt="Lights" width="150" height="150" >
+                </a>
+                <div class="media-body" >
+                   
+                    @{
+                        int brandNewItem = i.liked;
+                        if (brandNewItem==0)
+                    {
+                         <h4 style="color: red;"> New Item!!! </h4>
+                    }
+                    }
+                    @if (isWishlisted)
+                    {
+                        <span class="badge bg-warning text-dark">★ Wishlisted</span>
+                    }
+                    <h4> Price $@usedp </h4>
+                    <H6> @savingspercent% Off, Save: $@pricedifference</H6>
+                    <p></p>
+                    <p></p>
+                    <H6> @i.intertTime</H6>
+                    
+                    @if (isWishlisted)
+                    {
+                        <button class="btn btn-outline-danger btn-sm mt-2" onclick="removeFromWishlist('@i.asin')">
+                            💔 Remove
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-success btn-sm mt-2" onclick="addToWishlist('@i.asin')">
+                            ❤️ Wishlist
+                        </button>
+                    }
+                </div>
+            </div>
+
+        </div>
+        }
+
+        <p></p>
+
+    </div>
+</div>
+
+<div class="text-center">
+    @{
+        
+        <button id="readButton" onclick="updateRead()" class="btn btn-warning"> Mark All </button>
+
+        <button id="readButton" onclick="Refresh()"  class="btn btn-primary"> Refresh </button>
+    }
+</div>
+
+<script type="text/javascript">
+
+    function updateRead() {
+        $.post("/Home/updateRead", {}, function () {
+            alert("Updated Mark completed!");
+            location.reload();
+        });
+    }
+
+    function Refresh() {
+        location.reload();
+    }
+
+    function addToWishlist(asin) {
+        $.post("/Home/AddToWishlist", { asin: asin }, function (response) {
+            if (response.success) {
+                $('#wishlist-count').text(response.count);
+                location.reload();
+            }
+        });
+    }
+
+    function removeFromWishlist(asin) {
+        $.post("/Home/RemoveFromWishlist", { asin: asin }, function (response) {
+            if (response.success) {
+                $('#wishlist-count').text(response.count);
+                location.reload();
+            }
+        });
+    }
+
+</script>

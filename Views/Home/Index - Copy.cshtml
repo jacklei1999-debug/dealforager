@@ -1,0 +1,61 @@
+﻿@model WebUIMVC.MyClasses.Products
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to New Deals</h1>
+    @{
+        <h1>@Model.PL.Count</h1>
+        <button id="readButton" onclick="updateRead()"> Read </button>
+
+    }
+
+</div>
+
+<div class="container">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>name</th>
+                <th> image </th>
+                <th>price</th>
+                <th>Off</th>
+                <th>amazon Link</th>
+            </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var i in Model.PL)
+            {
+                <tr>
+                    <td>@i.title</td>
+
+
+                  @*  @{ var imagesrc = "https://m.media-amazon.com" + i.imageURL ;}*@
+                    @{ var imagesrc = "https://images.amazon.com/images/P/" + i.asin+".01._SCTZZZZZZZ_.jpg";}
+
+                    <td><img src="@imagesrc"></td>
+                    @{double usePrice = i.usedprice / 100;
+                        double savingspercent = i.savingspercent / 100;
+                    }
+                    <td>$@usePrice </td>
+                    <td>@savingspercent %</td>
+                    @{ var URLa = "https://www.amazon.com/dp/" + @i.asin + "/ref=olp_aod_redir_impl1?_encoding=UTF8&aod=1";}
+                    <td> <a href="@URLa" target="_blank">Amazon</a> </td>
+                </tr>
+            }
+
+        </tbody>
+    </table>
+</div>
+
+<script type="text/javascript">
+
+    function updateRead() {
+            $.post("/Home/updateRead", {}, function () {
+                alert("Updated completed!");
+            });
+        }
+</script>

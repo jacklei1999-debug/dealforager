@@ -1,0 +1,90 @@
+@model WebUIMVC.MyClasses.Products
+
+@{
+    ViewData["Title"] = "Wish List";
+}
+<h3> Wish List: @Model.PL.Count items </h3>
+<h5> @DateTime.Now </h5>
+
+<div class="text-center">
+    <a href="/" class="btn btn-primary"> Back to Deals </a>
+</div>
+
+<p> </p>
+
+<div class="container">
+    <div class="row">
+
+        @foreach (var i in Model.PL)
+        {
+
+            <div class="col-md-4">
+                @{
+                    var imagesrc = "";
+                    if(i.imageURL.Length > 1)
+                    {
+                        imagesrc = "https://images-na.ssl-images-amazon.com/images/I/" + i.imageURL;
+                    }
+                    else
+                    {
+                        imagesrc = "https://images.amazon.com/images/P/" +i.asin + ".01._SCTZZZZZZZ_.jpg";
+                    }
+
+                    decimal  usedp = i.usedprice / 100;
+                    decimal  savingsp = i.savingspercent /100;
+                    decimal  pricedifference = i.pricedifference /100;
+                    decimal usePrice =  Math.Round(usedp,2);
+                    decimal savingspercent = Math.Round(savingsp, 2);
+                    
+                    var URLa = "https://www.amazon.com/dp/" + @i.asin + "/ref=olp_aod_redir_impl1?_encoding=UTF8&aod=1";
+            }
+             
+            <div class="media border p-3 wishlisted">
+                <a href="@URLa" target="_blank">
+                    <img src="@imagesrc" alt="Lights" width="150" height="150" >
+                </a>
+                <div class="media-body" >
+                    <span class="badge bg-warning text-dark">★ Wishlisted</span>
+                    <h4> Price $@usedp </h4>
+                    <H6> @savingspercent% Off, Save: $@pricedifference</H6>
+                    <p></p>
+                    <p></p>
+                    <H6> @i.intertTime</H6>
+                    
+                    <button class="btn btn-outline-danger btn-sm mt-2" onclick="removeFromWishlist('@i.asin')">
+                        💔 Remove from Wishlist
+                    </button>
+                </div>
+            </div>
+
+        </div>
+        }
+
+        <p></p>
+
+    </div>
+</div>
+
+@if (Model.PL.Count == 0)
+{
+    <div class="text-center">
+        <p class="text-muted">Your wish list is empty.</p>
+        <a href="/" class="btn btn-primary">Browse Deals</a>
+    </div>
+}
+
+<script type="text/javascript">
+
+    function removeFromWishlist(asin) {
+        if (!confirm('Are you sure you want to remove this item from your wishlist?')) {
+            return;
+        }
+        $.post("/Home/RemoveFromWishlist", { asin: asin }, function (response) {
+            if (response.success) {
+                $('#wishlist-count').text(response.count);
+                location.reload();
+            }
+        });
+    }
+
+</script>
