@@ -1,16 +1,16 @@
+using System;
+using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using WebUIMVC.Data;
 using WebUIMVC.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace WebUIMVC
 {
@@ -23,40 +23,65 @@ namespace WebUIMVC
 
         public IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
             services.AddSignalR();
+            services.AddMemoryCache();
 
             services.AddDbContext<Context>(options =>
-                options.UseSqlite(Configuration.GetConnectionString("DealForagerDb")));
+            {
+                var connStr = Configuration.GetConnectionString("DealForagerDb") ?? "Data Source=DealA.db";
+                var csBuilder = new SqliteConnectionStringBuilder(connStr);
+                if (!Path.IsPathRooted(csBuilder.DataSource))
+                {
+                    csBuilder.DataSource = Path.Combine(AppContext.BaseDirectory, csBuilder.DataSource);
+                }
+
+                options.UseSqlite(
+                    csBuilder.ToString(),
+                    sqliteOptions => sqliteOptions.CommandTimeout(30));
+
+                // Suppress EF Core internal cancellation interruption noise when background tokens cancel
+                options.ConfigureWarnings(w => w.Log(
+                    (RelationalEventId.ConnectionError, LogLevel.Debug)));
+            });
+
+            services.AddScoped<IProductService, ProductService>();
+            services.AddHttpClient<FetchData>();
 
             // Register the background fetch service
             services.AddHostedService<FetchBackgroundService>();
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            // Ensure database is created with schema
+            // Ensure database and performance indexes are created
             using (var scope = app.ApplicationServices.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<Context>();
                 context.Database.EnsureCreated();
+
+                context.Database.ExecuteSqlRaw(@"
+                    PRAGMA journal_mode = WAL;
+                    PRAGMA busy_timeout = 30000;
+                    PRAGMA synchronous = NORMAL;
+                    CREATE INDEX IF NOT EXISTS IX_Products_asin ON Products(asin);
+                    CREATE INDEX IF NOT EXISTS IX_Products_readit_savingspercent ON Products(readit, savingspercent DESC);
+                    CREATE INDEX IF NOT EXISTS IX_Products_intertTime ON Products(intertTime);
+                ");
             }
 
-            if (env.IsDevelopment())
+            if (env.IsDevelopment() || Configuration.GetValue<bool>("DisplayDetailedErrors", false))
             {
                 app.UseDeveloperExceptionPage();
             }
             else
             {
                 app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
-            // app.UseHttpsRedirection(); // Disabled for HTTP-only deployment
+
             app.UseStaticFiles();
 
             app.UseRouting();

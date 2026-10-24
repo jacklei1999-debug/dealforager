@@ -5,6 +5,10 @@ VisualStudioVersion = 17.1.32421.90
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebUIMVC", "WebUIMVC.csproj", "{94EB7950-F2CA-454A-B99C-664AFCE4E84F}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{BE339AEC-EA3F-4842-9A3D-14F92143AF9D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebUIMVC.Tests", "tests\WebUIMVC.Tests\WebUIMVC.Tests.csproj", "{6AED64AD-4B6F-4981-88A3-F53510C29F7E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,11 +19,18 @@ Global
 		{94EB7950-F2CA-454A-B99C-664AFCE4E84F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{94EB7950-F2CA-454A-B99C-664AFCE4E84F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{94EB7950-F2CA-454A-B99C-664AFCE4E84F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AED64AD-4B6F-4981-88A3-F53510C29F7E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AED64AD-4B6F-4981-88A3-F53510C29F7E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AED64AD-4B6F-4981-88A3-F53510C29F7E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AED64AD-4B6F-4981-88A3-F53510C29F7E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {84DE71D2-9756-4193-B1EA-C3E3D85A7BCE}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6AED64AD-4B6F-4981-88A3-F53510C29F7E} = {BE339AEC-EA3F-4842-9A3D-14F92143AF9D}
 	EndGlobalSection
 EndGlobal

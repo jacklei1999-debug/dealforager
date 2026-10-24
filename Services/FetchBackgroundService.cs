@@ -1,6 +1,3 @@
-using WebUIMVC.Data;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,9 +5,12 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
-using WebUIMVC.Hubs;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Linq;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using WebUIMVC.Data;
+using WebUIMVC.Hubs;
 
 namespace WebUIMVC.Services
 {
@@ -19,28 +19,33 @@ namespace WebUIMVC.Services
         private readonly ILogger<FetchBackgroundService> _logger;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IConfiguration _configuration;
         private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public FetchBackgroundService(ILogger<FetchBackgroundService> logger, IHubContext<NotificationHub> hubContext, IServiceScopeFactory scopeFactory)
+        public FetchBackgroundService(
+            ILogger<FetchBackgroundService> logger,
+            IHubContext<NotificationHub> hubContext,
+            IServiceScopeFactory scopeFactory,
+            IConfiguration configuration)
         {
             _logger = logger;
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
+            _configuration = configuration;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("Fetch Background Service starting...");
 
-            // Load configurations from JSON file
             var configPath = Path.Combine(AppContext.BaseDirectory, "fetchConfigs.json");
 
             if (!File.Exists(configPath))
             {
-                _logger.LogWarning($"Config file not found: {configPath}. Fetch service disabled.");
+                _logger.LogWarning("Config file not found: {ConfigPath}. Fetch service disabled.", configPath);
                 return;
             }
 
@@ -53,20 +58,38 @@ namespace WebUIMVC.Services
                 return;
             }
 
-            _logger.LogInformation($"Loaded {configs.Count} fetch configurations");
+            _logger.LogInformation("Loaded {Count} fetch configurations", configs.Count);
             foreach (var config in configs)
             {
-                _logger.LogInformation($"  {config.DisplayName} Category: {config.Category}");
+                _logger.LogInformation("  {DisplayName} Category: {Category}", config.DisplayName, config.Category);
             }
 
-            // Run all configurations in parallel
+            using var fetchWindow = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            var durationSeconds = _configuration.GetValue<int>("Fetching:DurationSeconds");
+            if (durationSeconds > 0)
+            {
+                fetchWindow.CancelAfter(TimeSpan.FromSeconds(durationSeconds));
+                _logger.LogInformation("Fetching will stop after {Seconds} seconds; the UI will remain available.", durationSeconds);
+            }
+
             var tasks = new List<Task>();
             foreach (var config in configs)
             {
-                tasks.Add(RunConfigAsync(config, stoppingToken));
+                tasks.Add(RunConfigAsync(config, fetchWindow.Token));
             }
 
-            await Task.WhenAll(tasks);
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (OperationCanceledException) when (fetchWindow.IsCancellationRequested)
+            {
+            }
+
+            if (!stoppingToken.IsCancellationRequested && fetchWindow.IsCancellationRequested)
+            {
+                _logger.LogInformation("Test fetch window ended. Background fetching stopped; the UI remains available.");
+            }
         }
 
         private async Task RunConfigAsync(FetchConfig config, CancellationToken stoppingToken)
@@ -75,65 +98,52 @@ namespace WebUIMVC.Services
             {
                 try
                 {
-                    int newProducts = await FetchProductsAsync(config);
+                    int newProducts = await FetchProductsAsync(config, stoppingToken);
                     if (newProducts > 0)
                     {
-                        await _hubContext.Clients.All.SendAsync("newDeals", newProducts);
+                        using (var scope = _scopeFactory.CreateScope())
+                        {
+                            var productService = scope.ServiceProvider.GetService<IProductService>();
+                            productService?.InvalidateFeedCache();
+                        }
+
+                        await _hubContext.Clients.All.SendAsync("newDeals", newProducts, stoppingToken);
                     }
 
-                    _logger.LogInformation($"{config.DisplayName} Sleeping for {config.Interval} seconds...");
+                    _logger.LogInformation("{DisplayName} Sleeping for {Interval} seconds...", config.DisplayName, config.Interval);
                     await Task.Delay(config.Interval * 1000, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
-                    // Service is stopping
                     break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"{config.DisplayName} Error: {ex.Message}. Restarting in 10 seconds...");
+                    _logger.LogError(ex, "{DisplayName} Error: {Message}. Restarting in 10 seconds...", config.DisplayName, ex.Message);
                     await Task.Delay(10000, stoppingToken);
                 }
             }
         }
 
-        private async Task<int> FetchProductsAsync(FetchConfig config)
+        private async Task<int> FetchProductsAsync(FetchConfig config, CancellationToken cancellationToken)
         {
             string sorttype = "1";
+            _logger.LogInformation("{DisplayName} Starting fetch...", config.DisplayName);
 
-            _logger.LogInformation($"{config.DisplayName} Starting fetch...");
-
-            // 1. Get the state of the DB *before* the fetch
-            HashSet<string> asinsBefore;
+            int newProductsCount = 0;
             using (var scope = _scopeFactory.CreateScope())
             {
-                var context = scope.ServiceProvider.GetRequiredService<Context>();
-                asinsBefore = context.Products.Select(p => p.asin).ToHashSet();
+                var fetcher = scope.ServiceProvider.GetRequiredService<FetchData>();
+                newProductsCount = await fetcher.GetProducts(config.Category, sorttype, config.MinSavings, cancellationToken);
             }
-
-            // 2. Let the shared library do its work (fetching and saving)
-            var fetcher = new FetchData();
-            await fetcher.GetProducts(config.Category, sorttype, config.MinSavings);
-
-            // 3. Get the state of the DB *after* the fetch
-            HashSet<string> asinsAfter;
-            using (var scope = _scopeFactory.CreateScope())
-            {
-                var context = scope.ServiceProvider.GetRequiredService<Context>();
-                asinsAfter = context.Products.Select(p => p.asin).ToHashSet();
-            }
-
-            // 4. Compare the before and after states
-            asinsAfter.ExceptWith(asinsBefore);
-            int newProductsCount = asinsAfter.Count;
 
             if (newProductsCount > 0)
             {
-                _logger.LogInformation($"Detected {newProductsCount} new products for {config.DisplayName}.");
+                _logger.LogInformation("Detected {Count} new products for {DisplayName}.", newProductsCount, config.DisplayName);
             }
             else
             {
-                _logger.LogInformation($"No new products detected for {config.DisplayName}.");
+                _logger.LogInformation("No new products detected for {DisplayName}.", config.DisplayName);
             }
 
             return newProductsCount;
